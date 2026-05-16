@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Edge">
+<meta name="theme-color" content="#000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Garmin Edge</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#000;--border:#1e1e1e;--border2:#2a2a2a;
+  --cyan:#00d4ff;--green:#00e676;--red:#f44336;--yellow:#ffd600;--orange:#ff7043;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,0px);
+}
+html,body{width:100%;height:100%;background:#000;color:#fff;
+  font-family:'Arial Narrow',Arial,sans-serif;
+  overflow:hidden;user-select:none;-webkit-user-select:none;}
+
+/* ── APP SHELL ─── */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding-top:var(--safe-top);padding-bottom:var(--safe-bot);}
+
+/* ── STATUS BAR ─── */
+#sb{height:26px;flex-shrink:0;background:#080808;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 10px;}
+#gps-bars{display:flex;align-items:flex-end;gap:2px;height:13px;margin-right:3px;}
+.gb{width:3px;background:#2a2a2a;border-radius:1px 1px 0 0;transition:background .3s;}
+.gb.lit{background:var(--cyan);}
+#gps-txt{font-size:9px;color:#555;font-family:'Courier New',monospace;}
+#sb-mid{display:flex;align-items:center;gap:6px;}
+#rec-dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;transition:background .3s;}
+#rec-dot.rec{background:var(--green);box-shadow:0 0 5px var(--green);animation:bl 1s step-end infinite;}
+#rec-dot.pau{background:var(--yellow);}
+@keyframes bl{50%{opacity:0}}
+#nav-ico{font-size:11px;color:#333;}
+#nav-ico.lit{color:var(--cyan);}
+#sb-clock{font-size:12px;color:#aaa;font-family:'Courier New',monospace;letter-spacing:.05em;}
+#bat{width:22px;height:11px;border:1px solid #555;border-radius:2px;padding:1px;position:relative;}
+#bat::after{content:'';position:absolute;right:-4px;top:2px;width:3px;height:5px;background:#555;border-radius:0 1px 1px 0;}
+#bat-f{height:100%;width:65%;background:var(--cyan);border-radius:1px;}
+
+/* ── PAGE STRIP ─── */
+#psw{flex:1;overflow:hidden;}
+#ps{display:flex;width:500%;height:100%;
+  transition:transform .28s cubic-bezier(.25,.46,.45,.94);will-change:transform;}
+.pg{width:20%;height:100%;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── PAGE DOTS ─── */
+#dots{height:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:7px;}
+.dot{width:5px;height:5px;border-radius:50%;background:#2a2a2a;transition:all .2s;}
+.dot.on{background:var(--cyan);transform:scale(1.4);}
+
+/* ── BOTTOM BUTTONS ─── */
+#btns{height:62px;flex-shrink:0;background:#060606;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 8px;gap:7px;}
+.btn{flex:1;height:46px;border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  cursor:pointer;transition:all .12s;border:1px solid #2a2a2a;background:#0d0d0d;}
+.btn:active{transform:scale(.93);filter:brightness(1.3);}
+.btn-ico{font-size:20px;line-height:1;}
+.btn-lbl{font-size:8px;color:#555;letter-spacing:.08em;text-transform:uppercase;font-family:Arial,sans-serif;}
+#bstart{flex:1.7;background:#061506;border-color:#1c451c;}
+#bstart .btn-ico{font-size:24px;color:var(--green);}
+#bstart.rec{background:#160606;border-color:#451c1c;}
+#bstart.rec .btn-ico{color:var(--red);}
+#bstart.pau{background:#161006;border-color:#453a1c;}
+#bstart.pau .btn-ico{color:var(--yellow);}
+#blap .btn-ico{color:var(--yellow);}
+#bmenu .btn-ico{color:#888;}
+
+/* ════════════════════════════════════════
+   DATA CELL — Garmin-style
+   Label navibar top, big value center,
+   unit below value — all centered
+════════════════════════════════════════ */
+.cell{
+  flex:1;
+  position:relative;
+  background:#000;
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:18px 4px 8px;   /* top padding leaves room for label */
+  overflow:hidden;
+  min-width:0;min-height:0;
+}
+.cell:last-child{border-right:none;}
+/* Label — fixed top-left like Garmin */
+.lbl{
+  position:absolute;top:4px;left:0;right:0;
+  text-align:center;
+  font-size:10px;color:#444;
+  text-transform:uppercase;letter-spacing:.07em;
+  font-family:Arial,sans-serif;
+  white-space:nowrap;
+}
+/* Value */
+.val{
+  font-family:'Arial Narrow',Arial,sans-serif;
+  font-weight:700;color:#fff;
+  line-height:1;
+  text-align:center;
+  width:100%;
+  /* fluid font – overridden per row */
+  font-size:clamp(16px,7vw,36px);
+}
+/* Unit — below value */
+.unit{
+  font-size:11px;color:#666;
+  font-family:Arial,sans-serif;
+  text-align:center;margin-top:2px;
+}
+/* ROW — horizontal flex container */
+.row{display:flex;flex:1;min-height:0;}
+.row:last-child .cell{border-bottom:none;}
+
+/* Size overrides */
+.xl .val{font-size:clamp(56px,17vw,80px);}
+.lg .val{font-size:clamp(36px,11vw,52px);}
+.md .val{font-size:clamp(26px,8vw,38px);}
+.sm .val{font-size:clamp(20px,6vw,30px);}
+.xs .val{font-size:clamp(16px,5vw,24px);}
+/* bigger unit for XL */
+.xl .unit{font-size:14px;color:#888;}
+.lg .unit{font-size:12px;color:#777;}
+
+/* Colors */
+.cc .val{color:var(--cyan);}
+.cg .val{color:var(--green);}
+.co .val{color:var(--orange);}
+.cy .val{color:var(--yellow);}
+.cr .val{color:var(--red);}
+
+/* ════════════════════════════════════════
+   PAGE 0 – TRAINING
+   Layout:
+     Row 1 (40%): SPEED (full width, XL)
+     Row 2 (30%): DISTANCE | TIME (2 cols LG)
+     Row 3 (30%): HR | CADENCE | ASCENT (3 cols SM)
+════════════════════════════════════════ */
+#p0{background:#000;}
+#p0 .r1{flex:2.2;}
+#p0 .r2{flex:1.6;}
+#p0 .r3{flex:1.4;}
+
+/* ════════════════════════════════════════
+   PAGE 1 – SPEED FULL
+════════════════════════════════════════ */
+#p1{background:#000;}
+
+/* ════════════════════════════════════════
+   PAGE 2 – MAP
+════════════════════════════════════════ */
+#p2{position:relative;overflow:hidden;}
+#tl{position:absolute;inset:0;bottom:48px;overflow:hidden;}
+.ot{position:absolute;width:256px;height:256px;image-rendering:pixelated;}
+#mc{position:absolute;inset:0;bottom:48px;pointer-events:none;}
+/* Turn banner */
+#turn{position:absolute;top:0;left:0;right:0;z-index:20;
+  background:rgba(0,0,0,.94);border-bottom:1px solid #2a2a2a;
+  display:none;align-items:center;padding:6px 10px;gap:10px;min-height:56px;}
+#turn.on{display:flex;}
+#turn-box{width:44px;height:44px;flex-shrink:0;background:#07111a;
+  border:2px solid var(--cyan);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;font-size:26px;}
+#turn-info{flex:1;min-width:0;}
+#turn-d{font-size:22px;font-weight:700;font-family:'Arial Narrow',Arial,sans-serif;}
+#turn-desc{font-size:10px;color:var(--cyan);font-family:Arial,sans-serif;}
+#turn-wpt{font-size:9px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Map data strip */
+#mstrip{position:absolute;bottom:0;left:0;right:0;height:48px;z-index:10;
+  background:rgba(0,0,0,.93);border-top:1px solid var(--border);display:flex;}
+#mstrip .cell{padding:14px 4px 4px;border-bottom:none;}
+#mstrip .lbl{font-size:8px;}
+#mstrip .val{font-size:17px;}
+#mstrip .unit{font-size:8px;margin-top:1px;}
+/* Map controls */
+#mzoom{position:absolute;right:8px;bottom:56px;z-index:15;display:flex;flex-direction:column;gap:4px;}
+.mzb{width:34px;height:34px;background:rgba(0,0,0,.88);border:1px solid #333;
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--cyan);cursor:pointer;font-weight:bold;}
+.mzb:active{background:#1a1a1a;}
+#rctr{position:absolute;right:8px;bottom:104px;z-index:15;
+  width:34px;height:34px;background:rgba(0,0,0,.88);border:1px solid #333;
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--cyan);cursor:pointer;}
+#rctr:active{background:#1a1a1a;}
+#scalebadge{position:absolute;left:8px;bottom:54px;z-index:10;
+  background:rgba(0,0,0,.75);padding:2px 7px;border-radius:4px;
+  font-size:9px;color:#888;font-family:'Courier New',monospace;}
+
+/* ════════════════════════════════════════
+   PAGE 3 – ELEVATION
+════════════════════════════════════════ */
+#p3{flex-direction:column;}
+#elev-top{display:flex;height:30%;flex-shrink:0;border-bottom:1px solid var(--border);}
+#elev-top .cell{border-bottom:none;}
+#ecwrap{flex:1;position:relative;overflow:hidden;}
+#ecanv{width:100%;height:100%;display:block;}
+#egcanv{position:absolute;inset:0;pointer-events:none;}
+#gradelbl{position:absolute;top:5px;right:8px;font-size:10px;color:#555;font-family:'Courier New',monospace;}
+
+/* ════════════════════════════════════════
+   PAGE 4 – SENSORS
+════════════════════════════════════════ */
+#p4{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px;}
+.sec-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--cyan);font-family:Arial,sans-serif;margin:8px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.sensor-card{background:#0a0a0a;border:1px solid var(--border2);border-radius:8px;
+  padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.s-ico{font-size:28px;flex-shrink:0;}
+.s-info{flex:1;min-width:0;}
+.s-name{font-size:12px;font-weight:700;letter-spacing:.05em;}
+.s-status{font-size:10px;color:#555;font-family:Arial,sans-serif;margin-top:2px;}
+.s-val{font-size:30px;font-weight:700;font-family:'Arial Narrow',Arial,sans-serif;
+  color:var(--cyan);line-height:1;margin-top:2px;}
+.s-unit{font-size:10px;color:#555;font-family:Arial,sans-serif;}
+.s-btn{padding:8px 14px;background:transparent;border:1px solid #333;
+  border-radius:6px;font-size:11px;color:var(--cyan);font-family:Arial,sans-serif;
+  cursor:pointer;flex-shrink:0;letter-spacing:.05em;text-transform:uppercase;}
+.s-btn:active{background:#0a1a2a;}
+.s-btn.conn{border-color:#f44;color:#f44;}
+.ble-warn{background:#0a0a0a;border:1px solid var(--border);border-radius:8px;
+  padding:10px;font-size:10px;color:#555;font-family:Arial,sans-serif;line-height:1.6;}
+
+/* ════════════════════════════════════════
+   PAGE 5 – GPX
+════════════════════════════════════════ */
+#p5{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#gpx-inner{padding:10px;display:flex;flex-direction:column;gap:10px;}
+#gpx-sec-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--cyan);font-family:Arial,sans-serif;padding-bottom:4px;border-bottom:1px solid var(--border);}
+#gdrop{border:2px dashed #2a2a2a;border-radius:10px;background:#050505;
+  padding:20px 12px;text-align:center;cursor:pointer;transition:border-color .2s;}
+#gdrop.drag{border-color:var(--cyan);}
+#gdrop input{display:none;}
+#gdrop-ico{font-size:30px;margin-bottom:8px;}
+#gdrop-txt{font-size:11px;color:#555;font-family:Arial,sans-serif;line-height:1.6;}
+#gpick{display:inline-block;margin-top:10px;padding:8px 20px;background:#071420;
+  border:1px solid var(--cyan);border-radius:6px;font-size:11px;color:var(--cyan);font-family:Arial,sans-serif;}
+#rcard{background:#0a0a0a;border:1px solid var(--border2);border-radius:8px;padding:10px;display:none;}
+#rcard-name{font-size:13px;font-weight:700;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rs{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-family:Arial,sans-serif;font-size:11px;}
+.rs:last-child{border-bottom:none;}
+.rsl{color:#555;}.rsv{color:var(--cyan);font-weight:700;}
+#navbtn{padding:14px;background:#061506;border:1px solid #1c451c;border-radius:8px;
+  font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--green);font-family:'Arial Narrow',Arial,sans-serif;cursor:pointer;text-align:center;display:none;}
+#navbtn:active{background:#0c2a0c;}
+#clearbtn{padding:10px;background:transparent;border:1px solid #2a2a2a;border-radius:8px;
+  font-size:11px;color:#555;font-family:Arial,sans-serif;cursor:pointer;text-align:center;display:none;}
+.wrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-family:Arial,sans-serif;}
+.wrow:last-child{border-bottom:none;}
+.wico{font-size:12px;}.wname{flex:1;font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wdist{font-size:10px;color:var(--cyan);}
+
+/* ── TOAST ─── */
+#toast{position:fixed;bottom:calc(76px + var(--safe-bot));left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:rgba(8,8,8,.97);border:1px solid #2a2a2a;
+  padding:7px 18px;border-radius:20px;font-family:Arial,sans-serif;
+  font-size:11px;color:#ddd;opacity:0;transition:all .25s;
+  pointer-events:none;z-index:100;white-space:nowrap;}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+#lapf{position:fixed;inset:0;background:rgba(255,255,255,.13);pointer-events:none;z-index:90;opacity:0;transition:opacity .1s;}
+#lapf.on{opacity:1;}
+
+/* ── MENU ─── */
+#menu{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.97);display:none;flex-direction:column;
+  padding-top:var(--safe-top);padding-bottom:var(--safe-bot);}
+#menu.on{display:flex;}
+#menu-hdr{height:44px;flex-shrink:0;background:#060606;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);}
+.mrow{display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border-bottom:1px solid var(--border);cursor:pointer;font-family:Arial,sans-serif;font-size:13px;}
+.mrow:active{background:#07071a;color:var(--cyan);}
+.mico{font-size:18px;width:24px;text-align:center;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- STATUS BAR -->
+<div id="sb">
+  <div style="display:flex;align-items:center;gap:4px;">
+    <div id="gps-bars">
+      <div class="gb" id="gb1" style="height:3px"></div>
+      <div class="gb" id="gb2" style="height:6px"></div>
+      <div class="gb" id="gb3" style="height:9px"></div>
+      <div class="gb" id="gb4" style="height:12px"></div>
+    </div>
+    <span id="gps-txt">--</span>
+  </div>
+  <div id="sb-mid"><div id="rec-dot"></div><span id="nav-ico">🧭</span></div>
+  <div id="sb-clock">--:--</div>
+  <div id="bat"><div id="bat-f"></div></div>
+</div>
+
+<!-- PAGE STRIP -->
+<div id="psw"><div id="ps">
+
+<!-- ══ PAGE 0: TRAINING ══ -->
+<div class="pg" id="p0">
+  <!-- Row 1: BIG SPEED -->
+  <div class="row r1">
+    <div class="cell xl">
+      <span class="lbl">Prędkość</span>
+      <div class="val" id="v-spd">0.0</div>
+      <div class="unit">km/h</div>
+    </div>
+  </div>
+  <!-- Row 2: DISTANCE | TIME -->
+  <div class="row r2">
+    <div class="cell lg">
+      <span class="lbl">Dystans</span>
+      <div class="val" id="v-dist">0.00</div>
+      <div class="unit">km</div>
+    </div>
+    <div class="cell lg">
+      <span class="lbl">Czas jazdy</span>
+      <div class="val" id="v-time">0:00</div>
+    </div>
+  </div>
+  <!-- Row 3: HR | CADENCE | ASCENT -->
+  <div class="row r3">
+    <div class="cell sm cr">
+      <span class="lbl">Tętno</span>
+      <div class="val" id="v-hr">--</div>
+      <div class="unit">bpm</div>
+    </div>
+    <div class="cell sm cg">
+      <span class="lbl">Kadencja</span>
+      <div class="val" id="v-cad">--</div>
+      <div class="unit">rpm</div>
+    </div>
+    <div class="cell sm co">
+      <span class="lbl">Wzniesienie</span>
+      <div class="val" id="v-asc">0</div>
+      <div class="unit">m</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 1: SPEED FOCUS ══ -->
+<div class="pg" id="p1" style="flex-direction:column;">
+  <!-- Giant speed -->
+  <div class="row" style="flex:2.4;">
+    <div class="cell xl" style="border-bottom:none;">
+      <span class="lbl">Prędkość</span>
+      <div class="val" id="v-spd2">0.0</div>
+      <div class="unit" style="font-size:16px;color:#888;">km/h</div>
+    </div>
+  </div>
+  <!-- Avg | Max -->
+  <div class="row" style="flex:1.3;">
+    <div class="cell md cc">
+      <span class="lbl">Śr. prędkość</span>
+      <div class="val" id="v-avg">0.0</div>
+      <div class="unit">km/h</div>
+    </div>
+    <div class="cell md">
+      <span class="lbl">Max prędkość</span>
+      <div class="val" id="v-max">0.0</div>
+      <div class="unit">km/h</div>
+    </div>
+  </div>
+  <!-- Time | Dist | Lap -->
+  <div class="row" style="flex:1.1;">
+    <div class="cell sm">
+      <span class="lbl">Czas</span>
+      <div class="val" id="v-time2">0:00</div>
+    </div>
+    <div class="cell sm cc">
+      <span class="lbl">Dystans</span>
+      <div class="val" id="v-dist2">0.00</div>
+      <div class="unit">km</div>
+    </div>
+    <div class="cell sm cy">
+      <span class="lbl">Okrążenie</span>
+      <div class="val" id="v-lap">1</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 2: MAP ══ -->
+<div class="pg" id="p2">
+  <div id="tl"></div>
+  <canvas id="mc"></canvas>
+  <div id="turn">
+    <div id="turn-box"><span id="turn-arrow">↑</span></div>
+    <div id="turn-info">
+      <div id="turn-d">--</div>
+      <div id="turn-desc">Jedź prosto</div>
+      <div id="turn-wpt">--</div>
+    </div>
+  </div>
+  <div id="rctr" onclick="rcMap()">⊕</div>
+  <div id="mzoom">
+    <div class="mzb" onclick="cZoom(1)">+</div>
+    <div class="mzb" onclick="cZoom(-1)">−</div>
+  </div>
+  <div id="scalebadge">--</div>
+  <div id="mstrip">
+    <div class="cell" style="border-bottom:none;">
+      <span class="lbl">Prędkość</span>
+      <div class="val" id="vm-spd">0.0</div>
+      <div class="unit">km/h</div>
+    </div>
+    <div class="cell cc" style="border-bottom:none;">
+      <span class="lbl">Do celu</span>
+      <div class="val" id="vm-nav">--</div>
+      <div class="unit" id="vm-navu">km</div>
+    </div>
+    <div class="cell" style="border-bottom:none;">
+      <span class="lbl">Wys.</span>
+      <div class="val" id="vm-alt">--</div>
+      <div class="unit">m</div>
+    </div>
+    <div class="cell" style="border-bottom:none;">
+      <span class="lbl">Czas</span>
+      <div class="val" id="vm-t">0:00</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 3: ELEVATION ══ -->
+<div class="pg" id="p3">
+  <div id="elev-top">
+    <div class="cell md cc" style="border-bottom:none;">
+      <span class="lbl">Wysokość</span>
+      <div class="val" id="ve-alt">--</div>
+      <div class="unit">m n.p.m.</div>
+    </div>
+    <div class="cell md cg" style="border-bottom:none;">
+      <span class="lbl">Wzniesienie</span>
+      <div class="val" id="ve-asc">0</div>
+      <div class="unit">m</div>
+    </div>
+    <div class="cell md" style="border-bottom:none;">
+      <span class="lbl">Nachylenie</span>
+      <div class="val" id="ve-gr">0.0</div>
+      <div class="unit">%</div>
+    </div>
+  </div>
+  <div id="ecwrap">
+    <canvas id="ecanv"></canvas>
+    <canvas id="egcanv"></canvas>
+    <div id="gradelbl"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE 4: SENSORS ══ -->
+<div class="pg" id="p4">
+  <div class="sec-title">📡 Czujniki Bluetooth (BLE)</div>
+
+  <div class="sensor-card">
+    <div class="s-ico">❤️</div>
+    <div class="s-info">
+      <div class="s-name">TĘTNO (HRM)</div>
+      <div class="s-status" id="hr-st">Niepodłączony</div>
+      <div class="s-val" id="hr-v">--</div>
+      <div class="s-unit">bpm</div>
+    </div>
+    <button class="s-btn" id="hr-btn" onclick="connBLE('hr')">POŁĄCZ</button>
+  </div>
+
+  <div class="sensor-card">
+    <div class="s-ico">🚴</div>
+    <div class="s-info">
+      <div class="s-name">KADENCJA (CSC)</div>
+      <div class="s-status" id="cad-st">Niepodłączony</div>
+      <div class="s-val" id="cad-v">--</div>
+      <div class="s-unit">rpm</div>
+    </div>
+    <button class="s-btn" id="cad-btn" onclick="connBLE('cad')">POŁĄCZ</button>
+  </div>
+
+  <div class="sensor-card">
+    <div class="s-ico">⚡</div>
+    <div class="s-info">
+      <div class="s-name">MOC (POWER)</div>
+      <div class="s-status" id="pwr-st">Niepodłączony</div>
+      <div class="s-val" id="pwr-v">--</div>
+      <div class="s-unit">W</div>
+    </div>
+    <button class="s-btn" id="pwr-btn" onclick="connBLE('pwr')">POŁĄCZ</button>
+  </div>
+
+  <div class="ble-warn">
+    ⚠️ BLE działa w Chrome/Edge na Androidzie.<br>
+    Na iOS (Safari) zainstaluj <strong>Bluefy</strong> z App Store<br>
+    i otwórz tam adres aplikacji — BLE zadziała.
+  </div>
+</div>
+
+<!-- ══ PAGE 5: GPX ══ -->
+<div class="pg" id="p5">
+  <div id="gpx-inner">
+    <div id="gpx-sec-title">📁 Wgraj trasę GPX</div>
+    <div id="gdrop" onclick="document.getElementById('gpxf').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="dropG(event)">
+      <input type="file" id="gpxf" accept=".gpx" onchange="loadG(this.files[0])">
+      <div id="gdrop-ico">🗺️</div>
+      <div id="gdrop-txt">Naciśnij aby wybrać plik GPX<br>Komoot · Strava · Wikiloc</div>
+      <div id="gpick">WYBIERZ PLIK</div>
+    </div>
+    <div id="rcard">
+      <div id="rcard-name">--</div>
+      <div class="rs"><span class="rsl">Długość trasy</span><span class="rsv" id="rd-dist">--</span></div>
+      <div class="rs"><span class="rsl">Punkty GPS</span><span class="rsv" id="rd-pts">--</span></div>
+      <div class="rs"><span class="rsl">Wzniesienie</span><span class="rsv" id="rd-asc">--</span></div>
+      <div class="rs"><span class="rsl">Opadanie</span><span class="rsv" id="rd-desc">--</span></div>
+      <div class="rs"><span class="rsl">Min wysokość</span><span class="rsv" id="rd-mina">--</span></div>
+      <div class="rs"><span class="rsl">Max wysokość</span><span class="rsv" id="rd-maxa">--</span></div>
+    </div>
+    <div id="navbtn" onclick="startNav()">🧭 ROZPOCZNIJ NAWIGACJĘ</div>
+    <div id="clearbtn" onclick="clearRoute()">✕ Usuń trasę</div>
+    <div id="wptlist"></div>
+  </div>
+</div>
+
+</div></div><!-- /ps /psw -->
+
+<!-- PAGE DOTS -->
+<div id="dots">
+  <div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+  <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+</div>
+
+<!-- BUTTONS -->
+<div id="btns">
+  <div class="btn" id="blap" onclick="doLap()">
+    <div class="btn-ico">⭕</div><div class="btn-lbl">Lap</div>
+  </div>
+  <div class="btn" id="bstart" onclick="doStart()">
+    <div class="btn-ico" id="bs-ico">▶</div><div class="btn-lbl" id="bs-lbl">Start</div>
+  </div>
+  <div class="btn" id="bmenu" onclick="openMenu()">
+    <div class="btn-ico">☰</div><div class="btn-lbl">Menu</div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<div id="toast"></div>
+<div id="lapf"></div>
+
+<!-- MENU -->
+<div id="menu">
+  <div id="menu-hdr">Menu</div>
+  <div class="mrow" onclick="mdo('gpx')"><span class="mico">📁</span>Wgraj trasę GPX</div>
+  <div class="mrow" onclick="mdo('sensors')"><span class="mico">📡</span>Czujniki BLE</div>
+  <div class="mrow" onclick="mdo('stopnav')"><span class="mico">🛑</span>Zatrzymaj nawigację</div>
+  <div class="mrow" onclick="mdo('save')"><span class="mico">💾</span>Zapisz trasę GPX</div>
+  <div class="mrow" onclick="mdo('center')"><span class="mico">⊕</span>Centruj mapę</div>
+  <div class="mrow" onclick="mdo('reset')"><span class="mico">🗑</span>Resetuj aktywność</div>
+  <div class="mrow" onclick="closeMenu()"><span class="mico">✕</span>Zamknij</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const S={
+  page:0, NP:6,
+  rec:false, pau:false,
+  rideS:0, lapNum:1,
+  lat:null, lon:null, alt:null, hdg:null,
+  spd:0, maxSpd:0, dist:0, asc:0, desc:0, lastAlt:null,
+  avgSum:0, avgCnt:0,
+  track:[], elevH:[], lapMarks:[],
+  hrVal:null, cadVal:null, pwrVal:null,
+  wid:null,
+  route:null, rName:'', rDist:0,
+  navOn:false, navIdx:1, navRem:null,
+  zoom:15, cLat:null, cLon:null, mapM:false,
+};
+
+// ══════════════════════════════════════════════
+// SWIPE
+// ══════════════════════════════════════════════
+let tx0=0,ty0=0,sw=false;
+const psw=document.getElementById('psw'),ps=document.getElementById('ps');
+psw.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;tx0=e.touches[0].clientX;ty0=e.touches[0].clientY;sw=true;},{passive:true});
+psw.addEventListener('touchmove',e=>{
+  if(!sw||e.touches.length!==1)return;
+  const dx=e.touches[0].clientX-tx0,dy=e.touches[0].clientY-ty0;
+  if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>8){
+    e.preventDefault();ps.style.transition='none';
+    ps.style.transform=`translateX(calc(-${S.page*(100/S.NP)}% + ${dx*.4}px))`;
+  }
+},{passive:false});
+psw.addEventListener('touchend',e=>{
+  if(!sw)return;sw=false;
+  const dx=e.changedTouches[0].clientX-tx0,dy=e.changedTouches[0].clientY-ty0;
+  ps.style.transition='';
+  if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>40){dx<0&&S.page<S.NP-1?goPg(S.page+1):dx>0&&S.page>0?goPg(S.page-1):goPg(S.page);}
+  else goPg(S.page);
+});
+// Pinch zoom
+let pd0=null;
+document.getElementById('p2').addEventListener('touchstart',e=>{if(e.touches.length===2)pd0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);},{passive:true});
+document.getElementById('p2').addEventListener('touchmove',e=>{if(e.touches.length!==2||!pd0)return;const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(d-pd0>35){cZoom(1);pd0=d;}else if(pd0-d>35){cZoom(-1);pd0=d;}},{passive:true});
+document.getElementById('p2').addEventListener('touchend',()=>{pd0=null;});
+
+function goPg(n){
+  S.page=Math.max(0,Math.min(S.NP-1,n));
+  ps.style.transform=`translateX(-${S.page*(100/S.NP)}%)`;
+  document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('on',i===S.page));
+  if(S.page===2){loadTiles();setTimeout(drawMap,30);}
+  if(S.page===3){setTimeout(()=>{drawElev();drawREP();},30);}
+}
+
+// ══════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════
+function p2(n){return String(n).padStart(2,'0');}
+function fT(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return h?`${h}:${p2(m)}:${p2(ss)}`:`${m}:${p2(ss)}`;}
+function fMM(s){return`${p2(Math.floor(s/60))}:${p2(s%60)}`;}
+
+setInterval(()=>{
+  const n=new Date();
+  sv('sb-clock',`${p2(n.getHours())}:${p2(n.getMinutes())}`);
+  if(S.rec&&!S.pau)S.rideS++;
+  updF();
+  if(S.page===2)drawMap();
+  if(S.page===3)drawElev();
+},1000);
+
+// ══════════════════════════════════════════════
+// GPS
+// ══════════════════════════════════════════════
+function startGPS(){
+  if(!navigator.geolocation){toast('GPS niedostępny');return;}
+  S.wid=navigator.geolocation.watchPosition(onGPS,onGPSErr,
+    {enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+}
+function onGPS(pos){
+  const{latitude:lat,longitude:lon,altitude:alt,speed,accuracy,heading}=pos.coords;
+  S.lat=lat;S.lon=lon;
+  S.alt=alt!=null?Math.round(alt):S.alt;
+  S.hdg=heading;
+  S.spd=speed!=null?speed*3.6:0;
+  if(S.spd>S.maxSpd)S.maxSpd=S.spd;
+  // GPS bars
+  const acc=accuracy||99;
+  const bars=acc<5?4:acc<15?3:acc<30?2:acc<60?1:0;
+  [1,2,3,4].forEach(i=>document.getElementById('gb'+i)?.classList.toggle('lit',i<=bars));
+  sv('gps-txt',`${Math.round(acc)}m`);
+  // Elevation
+  if(S.alt!=null){
+    if(S.rec&&!S.pau&&S.lastAlt!=null){const dA=S.alt-S.lastAlt;if(dA>.5)S.asc+=dA;else if(dA<-.5)S.desc+=Math.abs(dA);}
+    S.lastAlt=S.alt;S.elevH.push(S.alt);if(S.elevH.length>500)S.elevH.shift();
+  }
+  // Distance
+  if(S.rec&&!S.pau&&S.track.length>0){
+    const l=S.track[S.track.length-1];const d=hav(l.lat,l.lon,lat,lon);
+    if(d>.003&&d<.3){S.dist+=d;if(S.spd>1){S.avgSum+=S.spd;S.avgCnt++;}}
+  }
+  if(S.rec&&!S.pau)S.track.push({lat,lon,alt:S.alt,t:Date.now()});
+  if(!S.mapM){S.cLat=lat;S.cLon=lon;}
+  if(S.navOn&&S.route)updNav(lat,lon);
+}
+function onGPSErr(e){toast('GPS: '+e.message);}
+function hav(la1,lo1,la2,lo2){
+  const R=6371,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function brng(la1,lo1,la2,lo2){
+  const dO=(lo2-lo1)*Math.PI/180;
+  const y=Math.sin(dO)*Math.cos(la2*Math.PI/180);
+  const x=Math.cos(la1*Math.PI/180)*Math.sin(la2*Math.PI/180)-Math.sin(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.cos(dO);
+  return(Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+
+// ══════════════════════════════════════════════
+// UPDATE FIELDS
+// ══════════════════════════════════════════════
+function sv(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function updF(){
+  const sp=S.spd.toFixed(1),di=S.dist.toFixed(2),t=fT(S.rideS);
+  const alt=S.alt!=null?S.alt:'--';
+  const avg=S.avgCnt>0?(S.avgSum/S.avgCnt).toFixed(1):'0.0';
+  let gr=0;
+  if(S.elevH.length>=6){const n=S.elevH.length;gr=S.spd>1?((S.elevH[n-1]-S.elevH[Math.max(0,n-8)])/(S.spd/3.6*7))*100:0;}
+  // P0
+  sv('v-spd',sp);sv('v-dist',di);sv('v-time',t);
+  sv('v-hr',S.hrVal!=null?S.hrVal:'--');
+  sv('v-cad',S.cadVal!=null?S.cadVal:'--');
+  sv('v-asc',Math.round(S.asc));
+  // P1
+  sv('v-spd2',sp);sv('v-avg',avg);sv('v-max',S.maxSpd.toFixed(1));
+  sv('v-time2',t);sv('v-dist2',di);sv('v-lap',S.lapNum);
+  // P2 strip
+  sv('vm-spd',sp);sv('vm-alt',alt);sv('vm-t',fMM(S.rideS));
+  if(S.navOn&&S.navRem!=null){const r=S.navRem;sv('vm-nav',r<1?(r*1000).toFixed(0):r.toFixed(2));sv('vm-navu',r<1?'m':'km');}
+  else{sv('vm-nav',di);sv('vm-navu','km');}
+  // P3
+  sv('ve-alt',alt);sv('ve-asc',Math.round(S.asc));sv('ve-gr',gr.toFixed(1));
+  document.getElementById('gradelbl').textContent=`Nachylenie: ${gr.toFixed(1)}%`;
+  // Sensor cards
+  sv('hr-v',S.hrVal!=null?S.hrVal:'--');
+  sv('cad-v',S.cadVal!=null?S.cadVal:'--');
+  sv('pwr-v',S.pwrVal!=null?S.pwrVal:'--');
+}
+
+// ══════════════════════════════════════════════
+// BUTTONS
+// ══════════════════════════════════════════════
+function doStart(){
+  const btn=document.getElementById('bstart'),ico=document.getElementById('bs-ico'),
+        lbl=document.getElementById('bs-lbl'),dot=document.getElementById('rec-dot');
+  if(!S.rec){
+    S.rec=true;S.pau=false;
+    btn.className='btn rec';ico.textContent='⏸';lbl.textContent='Pauza';dot.className='rec';
+    toast('▶ Nagrywanie');if(!S.wid)startGPS();
+  }else if(!S.pau){
+    S.pau=true;btn.className='btn pau';ico.textContent='▶';lbl.textContent='Wznów';dot.className='pau';toast('⏸ Wstrzymano');
+  }else{
+    S.pau=false;btn.className='btn rec';ico.textContent='⏸';lbl.textContent='Pauza';dot.className='rec';toast('▶ Wznowiono');
+  }
+}
+function doLap(){
+  if(!S.rec){toast('Naciśnij Start');return;}
+  S.lapNum++;S.lapMarks.push({idx:S.track.length});
+  flashLap();toast(`Okrążenie ${S.lapNum-1}`);sv('v-lap',S.lapNum);
+}
+function openMenu(){document.getElementById('menu').classList.add('on');}
+function closeMenu(){document.getElementById('menu').classList.remove('on');}
+function mdo(a){
+  closeMenu();
+  if(a==='gpx')goPg(5);
+  else if(a==='sensors')goPg(4);
+  else if(a==='stopnav'){S.navOn=false;document.getElementById('turn').classList.remove('on');document.getElementById('nav-ico').classList.remove('lit');toast('Nawigacja zatrzymana');}
+  else if(a==='save')saveGPX();
+  else if(a==='center')rcMap();
+  else if(a==='reset'){if(confirm('Zresetować aktywność?'))resetRide();}
+}
+function flashLap(){const e=document.getElementById('lapf');e.classList.add('on');setTimeout(()=>e.classList.remove('on'),250);}
+let tt;
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2800);}
+
+// ══════════════════════════════════════════════
+// BLE SENSORS
+// ══════════════════════════════════════════════
+async function connBLE(type){
+  if(!navigator.bluetooth){toast('BLE niedostępne w Safari. Użyj Bluefy z App Store.');return;}
+  try{
+    let svcUUID,charUUID,name;
+    if(type==='hr'){svcUUID='heart_rate';charUUID='heart_rate_measurement';name='HRM';}
+    else if(type==='cad'){svcUUID='cycling_speed_and_cadence';charUUID='csc_measurement';name='CSC';}
+    else{svcUUID='cycling_power';charUUID='cycling_power_measurement';name='PWR';}
+    toast('Skanowanie BLE…');
+    const dev=await navigator.bluetooth.requestDevice({filters:[{services:[svcUUID]}]});
+    const srv=await dev.gatt.connect();
+    const svc=await srv.getPrimaryService(svcUUID);
+    const ch=await svc.getCharacteristic(charUUID);
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged',e=>parseBLE(type,e.target.value));
+    const btn=document.getElementById(type+'-btn');
+    const st=document.getElementById(type+'-st');
+    if(btn){btn.textContent='ODŁĄCZ';btn.classList.add('conn');}
+    if(st)st.textContent='✓ '+dev.name;
+    toast(`${name}: ${dev.name} połączony`);
+  }catch(e){toast('BLE: '+(e.message||'błąd'));}
+}
+let _lastCrankRevs=null,_lastCrankTime=null;
+function parseBLE(type,value){
+  const dv=new DataView(value.buffer);
+  if(type==='hr'){
+    const flags=dv.getUint8(0);
+    S.hrVal=(flags&1)?dv.getUint16(1,true):dv.getUint8(1);
+  }else if(type==='cad'){
+    const flags=dv.getUint8(0);
+    if(flags&0x02){
+      const revs=dv.getUint16(1,true);
+      const time=dv.getUint16(3,true);// 1/1024 sec units
+      if(_lastCrankRevs!=null&&_lastCrankTime!=null){
+        let dR=(revs-_lastCrankRevs+65536)%65536;
+        let dT=(time-_lastCrankTime+65536)%65536;
+        if(dT>0)S.cadVal=Math.round(dR/(dT/1024)*60);
+      }
+      _lastCrankRevs=revs;_lastCrankTime=time;
+    }
+  }else if(type==='pwr'){
+    S.pwrVal=dv.getInt16(2,true);
+  }
+}
+
+// ══════════════════════════════════════════════
+// MAP TILES
+// ══════════════════════════════════════════════
+function l2t(lat,z){return Math.floor((1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*2**z);}
+function lo2t(lon,z){return Math.floor((lon+180)/360*2**z);}
+function loadTiles(){
+  const lat=S.cLat||S.lat,lon=S.cLon||S.lon;if(!lat)return;
+  const z=S.zoom,tl=document.getElementById('tl');
+  const W=tl.clientWidth,H=tl.clientHeight;if(!W||!H)return;
+  const cx=lo2t(lon,z),cy=l2t(lat,z);
+  const nx=Math.ceil(W/256)+2,ny=Math.ceil(H/256)+2;
+  const sx=cx-Math.floor(nx/2),sy=cy-Math.floor(ny/2);
+  const lf=((lon+180)/360*2**z)%1;
+  const lr=lat*Math.PI/180;
+  const lf2=((1-Math.log(Math.tan(lr)+1/Math.cos(lr))/Math.PI)/2*2**z)%1;
+  const ox=Math.round(W/2-lf*256-Math.floor(nx/2)*256);
+  const oy=Math.round(H/2-lf2*256-Math.floor(ny/2)*256);
+  tl.innerHTML='';
+  for(let dx=0;dx<nx;dx++)for(let dy=0;dy<ny;dy++){
+    const tx=sx+dx,ty=sy+dy;if(ty<0||ty>=2**z)continue;
+    const img=document.createElement('img');img.className='ot';
+    img.style.left=(ox+dx*256)+'px';img.style.top=(oy+dy*256)+'px';
+    img.src=`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`;
+    img.crossOrigin='anonymous';img.onerror=()=>{img.style.background='#0a1a0a';};
+    tl.appendChild(img);
+  }
+  const mpp=156543.03392*Math.cos(lat*Math.PI/180)/2**z;
+  const m=Math.round(mpp*50);
+  sv('scalebadge',m<1000?`${m}m`:`${(m/1000).toFixed(1)}km`);
+  drawMap();
+}
+function cZoom(d){S.zoom=Math.max(10,Math.min(19,S.zoom+d));loadTiles();toast('Zoom '+S.zoom);}
+function rcMap(){if(S.lat){S.cLat=S.lat;S.cLon=S.lon;}S.mapM=false;loadTiles();}
+
+// ══════════════════════════════════════════════
+// DRAW MAP CANVAS
+// ══════════════════════════════════════════════
+function drawMap(){
+  const cv=document.getElementById('mc');if(!cv)return;
+  const wp=cv.parentElement,W=wp.clientWidth,H=wp.clientHeight-48;
+  if(!W||!H)return;
+  cv.width=W*devicePixelRatio;cv.height=H*devicePixelRatio;
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,W,H);
+  const z=S.zoom,cLat=S.cLat||S.lat,cLon=S.cLon||S.lon;if(!cLat)return;
+  function px(lat,lon){return{x:W/2+(lon-cLon)*(256*2**z/360),y:H/2-(lat-cLat)*(256*2**z/180*Math.cos(cLat*Math.PI/180)*.89)};}
+  // GPX route
+  if(S.route&&S.route.length>1){
+    const si=S.navOn?Math.max(0,S.navIdx-1):0;
+    if(S.navOn&&S.navIdx>1){
+      ctx.beginPath();for(let i=0;i<S.navIdx;i++){const p=px(S.route[i].lat,S.route[i].lon);i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);}
+      ctx.strokeStyle='rgba(80,120,80,.5)';ctx.lineWidth=3;ctx.lineJoin='round';ctx.stroke();
+    }
+    ctx.beginPath();for(let i=si;i<S.route.length;i++){const p=px(S.route[i].lat,S.route[i].lon);i===si?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);}
+    ctx.strokeStyle='rgba(255,100,0,.9)';ctx.lineWidth=4;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
+    // Start flag
+    const sp2=px(S.route[0].lat,S.route[0].lon);
+    ctx.fillStyle='#0f0';ctx.fillRect(sp2.x,sp2.y-12,2,12);
+    ctx.beginPath();ctx.moveTo(sp2.x+2,sp2.y-12);ctx.lineTo(sp2.x+10,sp2.y-8);ctx.lineTo(sp2.x+2,sp2.y-4);ctx.closePath();ctx.fill();
+    // End checkered
+    const ep=px(S.route[S.route.length-1].lat,S.route[S.route.length-1].lon);
+    ctx.fillStyle='#fff';ctx.fillRect(ep.x-7,ep.y-14,14,14);ctx.fillStyle='#000';
+    for(let r=0;r<4;r++)for(let c=0;c<2;c++)if((r+c)%2===0)ctx.fillRect(ep.x-7+c*7,ep.y-14+r*3.5,7,3.5);
+    // Named wpts
+    S.route.forEach((pt,i)=>{if(!pt.name)return;const pp=px(pt.lat,pt.lon);ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,Math.PI*2);ctx.fillStyle=(S.navOn&&i<S.navIdx)?'#333':'#ffd600';ctx.fill();});
+    // Next wpt
+    if(S.navOn&&S.navIdx<S.route.length){const np=px(S.route[S.navIdx].lat,S.route[S.navIdx].lon);ctx.beginPath();ctx.arc(np.x,np.y,10,0,Math.PI*2);ctx.strokeStyle='rgba(0,210,255,.8)';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);}
+  }
+  // Track
+  if(S.track.length>1){
+    ctx.beginPath();S.track.forEach((pt,i)=>{const p=px(pt.lat,pt.lon);i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+    ctx.strokeStyle='rgba(80,160,255,.75)';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
+  }
+  // Position arrow
+  if(S.lat){
+    const pos=px(S.lat,S.lon);
+    ctx.beginPath();ctx.arc(pos.x,pos.y,16,0,Math.PI*2);ctx.fillStyle='rgba(0,180,255,.1)';ctx.fill();
+    ctx.save();ctx.translate(pos.x,pos.y);ctx.rotate((S.hdg||0)*Math.PI/180);
+    ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(8,8);ctx.lineTo(0,4);ctx.lineTo(-8,8);ctx.closePath();
+    ctx.fillStyle='#00ccff';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ══════════════════════════════════════════════
+// ELEVATION CHART
+// ══════════════════════════════════════════════
+function drawElev(){
+  const cv=document.getElementById('ecanv');if(!cv)return;
+  const wrap=document.getElementById('ecwrap');const W=wrap.clientWidth,H=wrap.clientHeight;if(!W||!H)return;
+  cv.width=W*devicePixelRatio;cv.height=H*devicePixelRatio;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  const data=S.elevH;
+  if(data.length<2){ctx.fillStyle='#333';ctx.font='11px Arial';ctx.fillText('Zbieranie danych wysokości…',12,H/2);return;}
+  const mn=Math.min(...data)-5,mx=Math.max(...data)+5,rng=mx-mn||1;
+  const pad={l:30,r:6,t:4,b:16};const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+  const tx=i=>pad.l+(i/(data.length-1))*cW,ty=v=>pad.t+cH-((v-mn)/rng)*cH;
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=.5;
+  for(let i=0;i<=4;i++){const y=pad.t+(cH/4)*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();ctx.fillStyle='#444';ctx.font='9px Arial';ctx.fillText(Math.round(mx-(rng/4)*i),2,y+3);}
+  const gr=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
+  gr.addColorStop(0,'rgba(0,180,210,.35)');gr.addColorStop(1,'rgba(0,60,90,.05)');
+  ctx.beginPath();ctx.moveTo(tx(0),pad.t+cH);data.forEach((v,i)=>ctx.lineTo(tx(i),ty(v)));ctx.lineTo(tx(data.length-1),pad.t+cH);ctx.closePath();ctx.fillStyle=gr;ctx.fill();
+  ctx.beginPath();data.forEach((v,i)=>i===0?ctx.moveTo(tx(i),ty(v)):ctx.lineTo(tx(i),ty(v)));ctx.strokeStyle='#00d4ff';ctx.lineWidth=1.5;ctx.stroke();
+  const lx=tx(data.length-1),ly=ty(data[data.length-1]);
+  ctx.setLineDash([2,2]);ctx.strokeStyle='rgba(0,212,255,.35)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(lx,pad.t);ctx.lineTo(lx,pad.t+cH);ctx.stroke();ctx.setLineDash([]);
+  ctx.beginPath();ctx.arc(lx,ly,5,0,Math.PI*2);ctx.fillStyle='#00d4ff';ctx.fill();
+}
+function drawREP(){
+  if(!S.route)return;
+  const pts=S.route.filter(p=>p.alt!=null);if(pts.length<2)return;
+  const cv=document.getElementById('egcanv'),wrap=document.getElementById('ecwrap');
+  const W=wrap.clientWidth,H=wrap.clientHeight;if(!W||!H)return;
+  setTimeout(()=>{
+    cv.width=W*devicePixelRatio;cv.height=H*devicePixelRatio;cv.style.width=W+'px';cv.style.height=H+'px';
+    const ctx=cv.getContext('2d');ctx.scale(devicePixelRatio,devicePixelRatio);
+    const data=pts.map(p=>p.alt),mn=Math.min(...data)-5,mx=Math.max(...data)+5,rng=mx-mn||1;
+    const pad={l:30,r:6,t:4,b:16};const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+    const tx=i=>pad.l+(i/(data.length-1))*cW,ty=v=>pad.t+cH-((v-mn)/rng)*cH;
+    ctx.beginPath();data.forEach((v,i)=>i===0?ctx.moveTo(tx(i),ty(v)):ctx.lineTo(tx(i),ty(v)));
+    ctx.strokeStyle='rgba(255,120,0,.45)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+  },80);
+}
+
+// ══════════════════════════════════════════════
+// GPX
+// ══════════════════════════════════════════════
+function dropG(e){e.preventDefault();document.getElementById('gdrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)loadG(f);}
+function loadG(f){if(!f)return;const r=new FileReader();r.onload=e=>parseG(e.target.result,f.name);r.readAsText(f);}
+function parseG(xml,fname){
+  try{
+    const doc=new DOMParser().parseFromString(xml,'text/xml');
+    if(doc.querySelector('parsererror')){toast('Błąd GPX');return;}
+    const ne=doc.querySelector('name');S.rName=ne?ne.textContent.trim():fname.replace('.gpx','');
+    let pts=[...doc.querySelectorAll('trkpt')];
+    if(!pts.length)pts=[...doc.querySelectorAll('rtept')];
+    if(!pts.length)pts=[...doc.querySelectorAll('wpt')];
+    if(pts.length<2){toast('GPX: min. 2 punkty');return;}
+    S.route=pts.map(p=>({
+      lat:parseFloat(p.getAttribute('lat')),lon:parseFloat(p.getAttribute('lon')),
+      alt:p.querySelector('ele')?parseFloat(p.querySelector('ele').textContent):null,
+      name:p.querySelector('name')?p.querySelector('name').textContent.trim():''
+    }));
+    let td=0,ta=0,tdc=0;
+    for(let i=1;i<S.route.length;i++){
+      td+=hav(S.route[i-1].lat,S.route[i-1].lon,S.route[i].lat,S.route[i].lon);
+      if(S.route[i].alt!=null&&S.route[i-1].alt!=null){const dA=S.route[i].alt-S.route[i-1].alt;if(dA>.5)ta+=dA;else if(dA<-.5)tdc+=Math.abs(dA);}
+    }
+    S.rDist=td;
+    const alts=S.route.map(p=>p.alt).filter(a=>a!=null);
+    sv('rcard-name',S.rName);sv('rd-dist',td.toFixed(2)+' km');sv('rd-pts',S.route.length);
+    sv('rd-asc',Math.round(ta)+' m');sv('rd-desc',Math.round(tdc)+' m');
+    sv('rd-mina',alts.length?Math.round(Math.min(...alts))+' m':'--');
+    sv('rd-maxa',alts.length?Math.round(Math.max(...alts))+' m':'--');
+    document.getElementById('rcard').style.display='block';
+    document.getElementById('navbtn').style.display='block';
+    document.getElementById('clearbtn').style.display='block';
+    const wpts=S.route.filter(p=>p.name);
+    if(wpts.length){
+      document.getElementById('wptlist').innerHTML=wpts.map(w=>{
+        const idx=S.route.indexOf(w);let d=0;
+        for(let j=1;j<=idx&&j<S.route.length;j++)d+=hav(S.route[j-1].lat,S.route[j-1].lon,S.route[j].lat,S.route[j].lon);
+        return`<div class="wrow"><span class="wico">📍</span><span class="wname">${w.name}</span><span class="wdist">${d.toFixed(1)} km</span></div>`;
+      }).join('');
+    }
+    if(S.route.length>0){S.cLat=S.route[0].lat;S.cLon=S.route[0].lon;S.mapM=true;loadTiles();}
+    drawREP();document.getElementById('nav-ico').classList.add('lit');
+    toast(`${S.rName} — ${td.toFixed(1)} km`);
+  }catch(e){toast('Błąd: '+e.message);}
+}
+function clearRoute(){
+  S.route=null;S.navOn=false;
+  document.getElementById('rcard').style.display='none';
+  document.getElementById('navbtn').style.display='none';
+  document.getElementById('clearbtn').style.display='none';
+  document.getElementById('wptlist').innerHTML='';
+  document.getElementById('turn').classList.remove('on');
+  document.getElementById('nav-ico').classList.remove('lit');
+  toast('Trasa usunięta');
+}
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function startNav(){
+  if(!S.route||S.route.length<2){toast('Brak trasy');return;}
+  S.navOn=true;S.navIdx=1;S.navRem=S.rDist;
+  goPg(2);document.getElementById('turn').classList.add('on');
+  document.getElementById('nav-ico').classList.add('lit');
+  toast('Nawigacja aktywna');spk('Nawigacja aktywna. Jedź!');
+}
+function updNav(lat,lon){
+  const R=S.route,n=R.length;
+  if(hav(lat,lon,R[S.navIdx].lat,R[S.navIdx].lon)<.030){
+    S.navIdx=Math.min(S.navIdx+1,n-1);
+    if(S.navIdx===n-1){spk('Dotarłeś do celu. Gratulacje!');toast('🏁 Cel!');S.navOn=false;document.getElementById('turn').classList.remove('on');return;}
+    if(R[S.navIdx].name)spk(R[S.navIdx].name);
+  }
+  let rem=0;for(let i=S.navIdx;i<n-1;i++)rem+=hav(R[i].lat,R[i].lon,R[i+1].lat,R[i+1].lon);
+  S.navRem=rem;
+  const la=Math.min(S.navIdx+1,n-1);
+  const dT=hav(lat,lon,R[la].lat,R[la].lon);
+  let arr='↑',dsc='Jedź prosto';
+  if(la<n-1&&la>0){
+    const b1=brng(R[la-1].lat,R[la-1].lon,R[la].lat,R[la].lon);
+    const b2=brng(R[la].lat,R[la].lon,R[Math.min(la+1,n-1)].lat,R[Math.min(la+1,n-1)].lon);
+    let df=(b2-b1+360)%360;if(df>180)df-=360;
+    if(Math.abs(df)<20){arr='↑';dsc='Jedź prosto';}
+    else if(df>=20&&df<60){arr='↗';dsc='Lekko w prawo';}
+    else if(df>=60&&df<120){arr='→';dsc='W prawo';}
+    else if(df>=120){arr='↪';dsc='Ostry prawy';}
+    else if(df<=-20&&df>-60){arr='↖';dsc='Lekko w lewo';}
+    else if(df<=-60&&df>-120){arr='←';dsc='W lewo';}
+    else{arr='↩';dsc='Ostry lewy';}
+    if(dT<.20&&dT>.18&&Math.abs(df)>20)spk(`Za 200 metrów ${dsc}`);
+    if(dT<.05&&dT>.03&&Math.abs(df)>20)spk(dsc);
+  }else if(la===n-1){arr='🏁';dsc='Cel trasy';}
+  sv('turn-arrow',arr);sv('turn-d',dT<1?(dT*1000).toFixed(0)+' m':(dT).toFixed(1)+' km');
+  sv('turn-desc',dsc);sv('turn-wpt',R[la].name||`Punkt ${la+1}/${n}`);
+}
+
+// ══════════════════════════════════════════════
+// VOICE
+// ══════════════════════════════════════════════
+let ls='',lt=0;
+function spk(t){
+  const now=Date.now();if(t===ls&&now-lt<15000)return;ls=t;lt=now;
+  if(!window.speechSynthesis)return;speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);u.lang='pl-PL';u.rate=.95;u.volume=1;
+  const v=speechSynthesis.getVoices().find(v=>v.lang.startsWith('pl'));if(v)u.voice=v;
+  speechSynthesis.speak(u);
+}
+if(window.speechSynthesis){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
+
+// ══════════════════════════════════════════════
+// SAVE GPX
+// ══════════════════════════════════════════════
+function saveGPX(){
+  if(S.track.length<2){toast('Brak danych');return;}
+  const now=new Date(),nm=`Edge_${now.toISOString().slice(0,10)}`;
+  const pts=S.track.map(p=>{const d=new Date(p.t);return`    <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}">${p.alt!=null?`<ele>${p.alt}</ele>`:''}<time>${d.toISOString()}</time></trkpt>`;}).join('\n');
+  const gpx=`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GarminEdge-PWA">\n  <trk><name>${nm}</name><trkseg>\n${pts}\n  </trkseg></trk>\n</gpx>`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([gpx],{type:'application/gpx+xml'}));a.download=nm+'.gpx';a.click();
+  toast('GPX: '+nm+'.gpx');
+}
+
+// ══════════════════════════════════════════════
+// RESET
+// ══════════════════════════════════════════════
+function resetRide(){
+  S.rec=false;S.pau=false;S.rideS=0;S.lapNum=1;
+  S.spd=0;S.maxSpd=0;S.dist=0;S.asc=0;S.desc=0;S.lastAlt=null;
+  S.avgSum=0;S.avgCnt=0;S.track=[];S.elevH=[];S.lapMarks=[];
+  document.getElementById('bstart').className='btn';
+  sv('bs-ico','▶');sv('bs-lbl','Start');
+  document.getElementById('rec-dot').className='';
+  toast('Zresetowano');updF();
+}
+
+// ══════════════════════════════════════════════
+// WAKE LOCK + SW + INIT
+// ══════════════════════════════════════════════
+if('wakeLock' in navigator){
+  const wl=()=>navigator.wakeLock.request('screen').catch(()=>{});wl();
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wl();});
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+goPg(0);startGPS();
+const _n=new Date();sv('sb-clock',`${p2(_n.getHours())}:${p2(_n.getMinutes())}`);
+</script>
+</body>
+</html>
