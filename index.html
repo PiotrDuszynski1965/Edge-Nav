@@ -91,50 +91,53 @@ html,body{width:100%;height:100%;background:#000;color:#fff;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  padding:18px 4px 8px;   /* top padding leaves room for label */
+  padding:20px 6px 6px;
   overflow:hidden;
   min-width:0;min-height:0;
 }
 .cell:last-child{border-right:none;}
-/* Label — fixed top-left like Garmin */
+/* Label — top center */
 .lbl{
-  position:absolute;top:4px;left:0;right:0;
+  position:absolute;top:3px;left:0;right:0;
   text-align:center;
   font-size:10px;color:#444;
   text-transform:uppercase;letter-spacing:.07em;
   font-family:Arial,sans-serif;
   white-space:nowrap;
 }
-/* Value */
+/* Value — centered */
 .val{
   font-family:'Arial Narrow',Arial,sans-serif;
   font-weight:700;color:#fff;
   line-height:1;
   text-align:center;
   width:100%;
-  /* fluid font – overridden per row */
   font-size:clamp(16px,7vw,36px);
+  display:block;
 }
-/* Unit — below value */
+/* Unit — centered below value */
 .unit{
-  font-size:11px;color:#666;
+  font-size:12px;color:#777;
   font-family:Arial,sans-serif;
-  text-align:center;margin-top:2px;
+  text-align:center;
+  width:100%;
+  display:block;
+  margin-top:3px;
 }
 /* ROW — horizontal flex container */
 .row{display:flex;flex:1;min-height:0;}
 .row:last-child .cell{border-bottom:none;}
 
 /* Size overrides */
-.xl .val{font-size:clamp(56px,17vw,80px);}
-.lg .val{font-size:clamp(36px,11vw,52px);}
-.md .val{font-size:clamp(26px,8vw,38px);}
-.sm .val{font-size:clamp(20px,6vw,30px);}
-.xs .val{font-size:clamp(16px,5vw,24px);}
-/* bigger unit for XL */
-.xl .unit{font-size:14px;color:#888;}
-.lg .unit{font-size:12px;color:#777;}
-
+.xl .val{font-size:clamp(56px,17vw,80px);text-align:center;}
+.lg .val{font-size:clamp(36px,11vw,52px);text-align:center;}
+.md .val{font-size:clamp(26px,8vw,38px);text-align:center;}
+.sm .val{font-size:clamp(20px,6vw,30px);text-align:center;}
+.xs .val{font-size:clamp(16px,5vw,24px);text-align:center;}
+.xl .unit{font-size:15px;color:#888;text-align:center;}
+.lg .unit{font-size:13px;color:#777;text-align:center;}
+.md .unit{font-size:12px;color:#777;text-align:center;}
+.sm .unit{font-size:11px;color:#666;text-align:center;}
 /* Colors */
 .cc .val{color:var(--cyan);}
 .cg .val{color:var(--green);}
