@@ -1,6 +1,6 @@
 // Service Worker — Garmin Edge PWA
 // Wersja cache – zmień przy każdej aktualizacji aplikacji
-const CACHE_NAME = 'edge-nav-v3';
+const CACHE_NAME = 'edge-nav-v4';
 
 // Pliki do cache offline
 const STATIC_ASSETS = [
